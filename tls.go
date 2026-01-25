@@ -186,6 +186,11 @@ func Server(ctx context.Context, conn net.Conn, config *Config) (*Conn, error) {
 	}
 	underlying := raw.(CloseWriteConn) // *net.TCPConn or *net.UnixConn
 
+	// Set handshake timeout to prevent slowloris-style attacks.
+	// Connections that don't complete handshake within this timeout will be closed.
+	const handshakeTimeout = 10 * time.Second
+	conn.SetReadDeadline(time.Now().Add(handshakeTimeout))
+
 	mutex := new(sync.Mutex)
 
 	hs := serverHandshakeStateTLS13{
@@ -442,6 +447,8 @@ func Server(ctx context.Context, conn net.Conn, config *Config) (*Conn, error) {
 				}
 			}
 			hs.c.isHandshakeComplete.Store(true)
+			// Clear read deadline after successful handshake to allow normal operation
+			conn.SetReadDeadline(time.Time{})
 			break
 		}
 		mutex.Unlock()
