@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/xtls/reality/tls12"
+	"github.com/115studio/reality/tls12"
 )
 
 type prfFunc func(secret []byte, label string, seed []byte, keyLen int) []byte
