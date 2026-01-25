@@ -1,6 +1,6 @@
 module github.com/115studio/reality
 
-go 1.24
+go 1.24.0
 
 require (
 	github.com/cloudflare/circl v1.6.1
