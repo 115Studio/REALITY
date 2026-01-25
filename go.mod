@@ -1,4 +1,4 @@
-module github.com/xtls/reality
+module github.com/115studio/reality
 
 go 1.27
 
