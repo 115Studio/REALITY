@@ -52,6 +52,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/115studio/blook-vpn-xray-core/transport/internet/ipblock"
 	"github.com/juju/ratelimit"
 	"github.com/pires/go-proxyproto"
 )
@@ -289,6 +290,13 @@ func Server(ctx context.Context, conn net.Conn, config *Config) (*Conn, error) {
 		}
 		mutex.Unlock()
 		if hs.c.conn != conn {
+			if host, exceeded := globalFallbackRL.recordFallback(remoteAddr); exceeded {
+				ipblock.BlockIPStr(host)
+				target.Close()
+				conn.Close()
+				waitGroup.Done()
+				return
+			}
 			if config.Show && hs.clientHello != nil {
 				fmt.Printf("REALITY remoteAddr: %v\tforwarded SNI: %v\n", remoteAddr, hs.clientHello.serverName)
 			}
