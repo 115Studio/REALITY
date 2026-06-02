@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +18,14 @@ var GlobalPostHandshakeRecordsLens sync.Map
 
 func DetectPostHandshakeRecordsLens(config *Config) {
 	for sni := range config.ServerNames {
+		// A wildcard pattern (e.g. "host-*.example.com") cannot be dialed
+		// directly. Measure it with a concrete representative, but key the
+		// result under the pattern so any SNI matched via this wildcard at
+		// runtime (see Config.canonicalServerName) resolves to this entry.
+		dialName := sni
+		if strings.Contains(sni, "*") {
+			dialName = strings.ReplaceAll(sni, "*", "wildcard")
+		}
 		for alpn := range 3 { // 0, 1, 2
 			key := config.Dest + " " + sni + " " + strconv.Itoa(alpn)
 			if _, loaded := GlobalPostHandshakeRecordsLens.LoadOrStore(key, false); !loaded {
@@ -52,7 +61,7 @@ func DetectPostHandshakeRecordsLens(config *Config) {
 						nextProtos = nil
 					}
 					uConn := utls.UClient(detectConn, &utls.Config{
-						ServerName: sni, // needs new loopvar behaviour
+						ServerName: dialName, // needs new loopvar behaviour
 						NextProtos: nextProtos,
 					}, fingerprint)
 					if err = uConn.Handshake(); err != nil {
