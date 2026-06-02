@@ -952,6 +952,59 @@ type Config struct {
 	autoSessionTicketKeys []ticketKey
 }
 
+// realityWildcardMaxLen bounds the number of bytes a single '*' in a configured
+// server name is allowed to match in an incoming SNI.
+const realityWildcardMaxLen = 64
+
+// matchServerName reports whether name is an accepted REALITY server name.
+//
+// Besides exact entries in ServerNames, a configured entry containing a single
+// '*' acts as a wildcard: name is accepted when it shares the entry's prefix and
+// suffix and the substituted middle is between 1 and realityWildcardMaxLen bytes.
+func (c *Config) matchServerName(name string) bool {
+	if c.ServerNames[name] {
+		return true
+	}
+	return c.matchWildcardServerName(name) != ""
+}
+
+// matchWildcardServerName returns the wildcard pattern from ServerNames that
+// matches name (sharing the pattern's prefix/suffix with a 1..realityWildcardMaxLen
+// byte middle), or "" if no wildcard pattern matches.
+func (c *Config) matchWildcardServerName(name string) string {
+	for pattern := range c.ServerNames {
+		star := strings.IndexByte(pattern, '*')
+		if star < 0 {
+			continue
+		}
+		prefix, suffix := pattern[:star], pattern[star+1:]
+		if len(name) < len(prefix)+len(suffix) {
+			continue
+		}
+		if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
+			continue
+		}
+		if mid := len(name) - len(prefix) - len(suffix); mid >= 1 && mid <= realityWildcardMaxLen {
+			return pattern
+		}
+	}
+	return ""
+}
+
+// canonicalServerName maps an incoming SNI to the key used for per-SNI lookups
+// (e.g. post-handshake record lengths). An exact ServerNames entry maps to
+// itself; an SNI accepted via a wildcard maps to its wildcard pattern, so all
+// random names under one wildcard share a single measured entry.
+func (c *Config) canonicalServerName(name string) string {
+	if c.ServerNames[name] {
+		return name
+	}
+	if pattern := c.matchWildcardServerName(name); pattern != "" {
+		return pattern
+	}
+	return name
+}
+
 // EncryptedClientHelloKey holds a private key that is associated
 // with a specific ECH config known to a client.
 type EncryptedClientHelloKey struct {
