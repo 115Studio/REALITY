@@ -6,9 +6,12 @@ import (
 	"time"
 )
 
+// A censor's probe sweep sends dozens of bad hellos a minute; a real client behind a broken
+// clock or a stale key sends a handful. 10 was low enough that a few retrying clients on
+// one NAT went dark together, and "silent after ten connections" is itself a tell.
 const (
 	fallbackRateWindow   = time.Minute
-	fallbackRateMaxCount = 10
+	fallbackRateMaxCount = 60
 	fallbackCleanupEvery = 5 * time.Minute
 )
 
