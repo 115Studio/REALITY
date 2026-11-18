@@ -238,7 +238,10 @@ func Server(ctx context.Context, conn net.Conn, config *Config) (*Conn, error) {
 				}
 			}
 			if peerPub2 == nil {
-				break // reject outdated/strange Client Hello that doesn't have X25519MLKEM768 before optional X25519
+				if !config.takesLegacyHello() {
+					break // reject outdated/strange Client Hello that doesn't have X25519MLKEM768 before optional X25519
+				}
+				peerPub = legacyAuthShare(hs.clientHello.keyShares)
 			}
 			if peerPub == nil {
 				peerPub = peerPub2 // secondary choice: X25519 in X25519MLKEM768
